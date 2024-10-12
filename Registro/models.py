@@ -342,6 +342,7 @@ class OfertaEmpleo(models.Model):
     def __str__(self):
         return f'{self.ocupacion_ofrecida} - {self.empresa.nombre}'
 
+
     def save(self, *args, **kwargs):
         # Convertir a "nombre propio" (Title Case) los campos relevantes
         self.ocupacion_ofrecida = self.ocupacion_ofrecida.title()
