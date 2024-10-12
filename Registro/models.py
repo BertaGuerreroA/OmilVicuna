@@ -1,6 +1,5 @@
 from enum import unique
-
-from Scripts.pywin32_postinstall import verbose
+# from Scripts.pywin32_postinstall import verbose
 from django.db import models
 from datetime import date
 
@@ -219,6 +218,17 @@ class Empresa(models.Model):
         verbose_name_plural = "Empresas"
 
 
+    def save(self, *args, **kwargs):
+
+        # Procesar y limpiar el RUT
+        rut_sin_puntos = self.rut.replace(".", "").replace(",", "").replace("-", "")  # Quitar puntos y comas
+        cuerpo_rut = rut_sin_puntos[:-2]  # Los números antes del guion
+        digito_verificador = rut_sin_puntos[-1].upper()  # El último carácter (DV), convertido a mayúscula
+        self.rut = f"{cuerpo_rut}-{digito_verificador}"  # Formatear el RUT con guion
+
+        super(Empresa, self).save(*args, **kwargs)
+
+
 class AlianzaColaborativa(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField()
@@ -316,7 +326,7 @@ class OfertaEmpleo(models.Model):
     cargo_solicitante = models.CharField(max_length=255)  # Cargo del solicitante
     direccion_empresa = models.CharField(max_length=255)  # Dirección de la empresa
     comuna_trabajo = models.ForeignKey(Comunas, on_delete=models.CASCADE, related_name='comuna_trabajo')  # Comuna donde trabajará
-    experiencia_requerida = models.PositiveIntegerField()  # Años de experiencia requerida
+    experiencia_requerida = models.PositiveIntegerField(verbose_name="Experiencia requerida (años)")  # Años de experiencia requerida
     escolaridad_requerida = models.CharField(max_length=30, choices=ESCOLARIDAD_CHOICES, verbose_name="Escolaridad")
     rango_salarios = models.CharField(max_length=50)  # Rango de salarios
     sexo_requerido = models.CharField(max_length=1, choices=GENERO_CHOICES, verbose_name="Sexo")
@@ -330,19 +340,20 @@ class OfertaEmpleo(models.Model):
     alianza_colaborativa = models.ForeignKey(AlianzaColaborativa, on_delete=models.SET_NULL, null=True)  # Alianza colaborativa
 
     def __str__(self):
-        return f'{self.titulo} - {self.empresa.nombre}'
+        return f'{self.ocupacion_ofrecida} - {self.empresa.nombre}'
+
+
 
     def save(self, *args, **kwargs):
         # Convertir a "nombre propio" (Title Case) los campos relevantes
-        self.titulo = self.titulo.title()
-        self.giro_empresa = self.giro_empresa.title()
+        self.ocupacion_ofrecida = self.ocupacion_ofrecida.title()
+        self.ocupacion_ofrecida = self.ocupacion_ofrecida.title()
         self.nombre_solicitante = self.nombre_solicitante.title()
         self.cargo_solicitante = self.cargo_solicitante.title()
-        self.direccion_empresa = self.direccion_empresa.title()
         self.lugar_trabajo_obra = self.lugar_trabajo_obra.title()
 
         # Normalizar el correo electrónico a minúsculas
-        self.email_empresa = self.email_empresa.lower()
+        # self.email_empresa = self.email_empresa.lower()
 
         # Procesar y limpiar el RUT del solicitante
         rut_sin_puntos_2 = self.run_solicitante.replace(".", "").replace(",", "")  # Quitar puntos y comas
@@ -366,7 +377,7 @@ class Derivacion(models.Model):
     estado = models.CharField(max_length=50, choices=[('pendiente', 'Pendiente'), ('aceptada', 'Aceptada'), ('rechazada', 'Rechazada')])
 
     def __str__(self):
-        return f'Derivación de {self.persona.nombre_completo} a {self.oferta_empleo.titulo}'
+        return f'Derivación de {self.persona.nombre_completo} a {self.oferta_empleo.ocupacion_ofrecida}'
     class Meta:
         verbose_name_plural = "Derivaciones a ofertas"
 
@@ -399,7 +410,7 @@ class Visita(models.Model):
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name='visitas')
     fecha_visita = models.DateTimeField(auto_now_add=True)
     registro_bne = models.CharField(max_length=10, choices=REGISTRO_BNE_CHOICES, default='pendiente')
-    oferta_empleo = models.ManyToManyField(OfertaEmpleo, verbose_name="Oferta de Empleo")  # Nueva relación
+    oferta_empleo = models.ManyToManyField(OfertaEmpleo, verbose_name="Oferta de Empleo", null=True, blank=True)  # Nueva relación
     motivo = models.ManyToManyField(Motivo, verbose_name="Motivos")  # Relación muchos a muchos con Motivos
     capacitaciones = models.ManyToManyField(Capacitacion, blank=True,
                                             verbose_name="Capacitaciones")  # Nueva relación con Capacitaciones
